@@ -1,5 +1,7 @@
 # AI Agent Hub
 
+[![Smoke](https://github.com/kuker24/Codex-Agent/actions/workflows/smoke.yml/badge.svg)](https://github.com/kuker24/Codex-Agent/actions/workflows/smoke.yml)
+
 Launcher lokal untuk `codex agent` dengan dua mode utama:
 
 - `Grid`: multi-agent CLI di `tmux`
@@ -11,6 +13,12 @@ Perintah utama:
 
 ```bash
 codex agent
+```
+
+Workflow git/PR helper:
+
+```bash
+./scripts/git-pr-flow --help
 ```
 
 Saat dipanggil, sekarang muncul menu awal:
@@ -228,6 +236,48 @@ Catatan CI:
 - `npm test` lokal tetap menjalankan full suite, termasuk grid `tmux`
 - workflow GitHub default memakai subset smoke yang paling stabil lintas runner
 - grid `tmux` dan real Electron tetap tersedia untuk verifikasi lokal / manual dispatch
+
+## Branch Dan PR
+
+Automation helper tersedia di:
+
+```bash
+./scripts/git-pr-flow
+```
+
+Flow yang dikerjakan script ini:
+
+1. switch atau buat branch fitur
+2. stage semua perubahan
+3. commit jika working tree kotor
+4. push branch ke `origin`
+5. buat PR otomatis jika `gh` atau `GH_TOKEN` / `GITHUB_TOKEN` tersedia
+6. fallback ke compare URL jika auth PR belum tersedia
+
+Contoh:
+
+```bash
+./scripts/git-pr-flow \
+  --branch feat/ui-polish \
+  --message "Polish dashboard layout" \
+  --title "Polish dashboard layout" \
+  --body "Refine layout spacing and interaction polish."
+```
+
+Mode push-only:
+
+```bash
+./scripts/git-pr-flow \
+  --branch feat/swarm-copy \
+  --message "Refine swarm copy" \
+  --push-only
+```
+
+Catatan:
+
+- untuk create PR otomatis, paling praktis pakai `gh auth login`
+- alternatifnya set `GH_TOKEN` atau `GITHUB_TOKEN`
+- kalau auth PR belum ada, script akan memberi compare URL GitHub yang siap dibuka
 
 ## Verifikasi
 
