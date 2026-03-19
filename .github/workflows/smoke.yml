@@ -6,6 +6,12 @@ on:
       - "**"
   pull_request:
   workflow_dispatch:
+    inputs:
+      run_real_electron:
+        description: "Run the real Electron boot smoke in xvfb"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: smoke-${{ github.workflow }}-${{ github.ref }}
@@ -48,4 +54,36 @@ jobs:
           node --check desktop/main.cjs
 
       - name: Run smoke suite
-        run: xvfb-run -a env AI_AGENT_SMOKE_ELECTRON_REAL=1 npm test
+        run: npm test
+
+  electron-smoke:
+    needs: smoke
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_real_electron == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tmux xvfb xauth
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Run real Electron smoke
+        run: xvfb-run -a env AI_AGENT_SMOKE_ELECTRON_REAL=1 python3 tests/smoke_runner.py

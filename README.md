@@ -214,7 +214,8 @@ Workflow ini berjalan pada `push`, `pull_request`, dan `workflow_dispatch`, lalu
 - install dependency Node dan Python
 - install `tmux`, `xvfb`, dan `xauth`
 - menjalankan static validation
-- menjalankan smoke suite di `xvfb` dengan `AI_AGENT_SMOKE_ELECTRON_REAL=1`
+- menjalankan smoke suite standar pada `push` dan `pull_request`
+- menyediakan jalur manual `workflow_dispatch` untuk real Electron smoke bila ingin diuji di CI
 
 ## Verifikasi
 
