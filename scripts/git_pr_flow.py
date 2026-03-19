@@ -12,6 +12,8 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from git_flow_common import BRANCH_TYPES, build_branch_name
+
 
 def run(command: list[str], *, cwd: str | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(command, cwd=cwd, text=True, capture_output=True)
@@ -155,7 +157,11 @@ def maybe_create_pr_with_token(owner: str, repo: str, title: str, body: str, bas
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Create/switch branch, commit, push, and optionally open or create a GitHub PR.")
-    parser.add_argument("--branch", help="Target feature branch. If omitted, use current branch.")
+    parser.add_argument("--branch", help="Explicit target branch. If omitted, current branch is used unless --type/--slug builds one.")
+    parser.add_argument("--type", dest="branch_type", choices=BRANCH_TYPES, help="Standard branch prefix, for example feat or fix.")
+    parser.add_argument("--slug", help="Branch slug used with --type, for example ui-polish.")
+    parser.add_argument("--scope", help="Optional middle scope used with --type/--slug.")
+    parser.add_argument("--ticket", help="Optional issue id used with --type/--slug, for example ABC-123.")
     parser.add_argument("--base", default="main", help="Base branch for PRs. Default: main")
     parser.add_argument("--message", help="Commit message for staged changes.")
     parser.add_argument("--title", help="PR title. Default: latest commit subject.")
@@ -168,14 +174,35 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def resolved_branch_name(args: argparse.Namespace) -> str | None:
+    if args.branch and any([args.branch_type, args.slug, args.scope, args.ticket]):
+        raise SystemExit("Gunakan --branch atau kombinasi --type/--slug/--scope/--ticket, jangan keduanya sekaligus.")
+
+    if args.branch:
+        return args.branch.strip()
+
+    if not any([args.branch_type, args.slug, args.scope, args.ticket]):
+        return None
+
+    if not args.slug:
+        raise SystemExit("--slug wajib jika menggunakan --type/--scope/--ticket.")
+
+    branch_type = args.branch_type or "feat"
+    try:
+        return build_branch_name(branch_type, slug=args.slug, scope=args.scope, ticket=args.ticket)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+
+
 def main() -> int:
     args = build_parser().parse_args()
     cwd = repo_root()
 
     branch = current_branch(cwd)
-    if args.branch and args.branch != branch:
-        git(["switch", "-C", args.branch], cwd=cwd)
-        branch = args.branch
+    target_branch = resolved_branch_name(args)
+    if target_branch and target_branch != branch:
+        git(["switch", "-C", target_branch], cwd=cwd)
+        branch = target_branch
 
     if branch == args.base and not args.allow_main and not args.push_only:
         raise SystemExit("Current branch sama dengan base branch. Gunakan --branch untuk branch fitur atau --allow-main jika memang sengaja.")

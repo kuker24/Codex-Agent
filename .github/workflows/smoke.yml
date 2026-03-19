@@ -47,14 +47,14 @@ jobs:
 
       - name: Static validation
         run: |
-          python3 -m py_compile scripts/codex_agent.py tests/smoke_runner.py
-          bash -n tests/run-smoke-tests.sh scripts/launch-agent-swarm.sh scripts/install-codex-agent-shell.sh scripts/codex-agent
+          python3 -m py_compile scripts/codex_agent.py scripts/git_flow_common.py scripts/git_pr_flow.py scripts/start_work_branch.py tests/smoke_runner.py
+          bash -n tests/run-smoke-tests.sh scripts/launch-agent-swarm.sh scripts/install-codex-agent-shell.sh scripts/install-gh-local.sh scripts/gh-auth-login.sh scripts/codex-agent scripts/git-pr-flow scripts/start-work-branch
           node --check server/swarm-server.js
           node --check server/index.js
           node --check desktop/main.cjs
 
       - name: Run smoke suite
-        run: env AI_AGENT_SMOKE_TESTS=wrapper,swarm-launcher,web-two-panel,swarm-stop npm test
+        run: env AI_AGENT_SMOKE_TESTS=wrapper,gh-install,gh-auth,pr-flow,branch-helper,swarm-launcher,web-two-panel,swarm-stop npm test
 
   electron-smoke:
     needs: smoke
@@ -86,4 +86,4 @@ jobs:
         run: npm ci
 
       - name: Run real Electron smoke
-        run: xvfb-run -a env AI_AGENT_SMOKE_TESTS=wrapper,swarm-launcher,web-two-panel,real-electron,swarm-stop AI_AGENT_SMOKE_ELECTRON_REAL=1 python3 tests/smoke_runner.py
+        run: xvfb-run -a env AI_AGENT_SMOKE_TESTS=wrapper,gh-install,gh-auth,pr-flow,branch-helper,swarm-launcher,web-two-panel,real-electron,swarm-stop AI_AGENT_SMOKE_ELECTRON_REAL=1 python3 tests/smoke_runner.py

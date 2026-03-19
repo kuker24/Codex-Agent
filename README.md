@@ -237,9 +237,72 @@ Catatan CI:
 - workflow GitHub default memakai subset smoke yang paling stabil lintas runner
 - grid `tmux` dan real Electron tetap tersedia untuk verifikasi lokal / manual dispatch
 
+## GitHub CLI Lokal
+
+Installer lokal tanpa `sudo` tersedia di:
+
+```bash
+./scripts/install-gh-local.sh
+```
+
+Script ini akan:
+
+1. download GitHub CLI release terbaru
+2. install ke `~/.local/share/github-cli/<version>`
+3. symlink binary ke `~/.local/bin/gh`
+
+Untuk login `gh`, gunakan:
+
+```bash
+./scripts/gh-auth-login.sh
+```
+
+Flow auth:
+
+1. jika `gh` belum ada, installer lokal dijalankan otomatis
+2. jika `GH_TOKEN` atau `GITHUB_TOKEN` tersedia, login dilakukan non-interaktif
+3. jika token tidak ada, script turun ke `gh auth login --web --git-protocol ssh`
+4. setelah login, script menjalankan `gh auth setup-git`
+
 ## Branch Dan PR
 
-Automation helper tersedia di:
+Starter branch standar tersedia di:
+
+```bash
+./scripts/start-work-branch
+```
+
+Contoh:
+
+```bash
+./scripts/start-work-branch \
+  --type feat \
+  --scope swarm \
+  --ticket AGENT-24 \
+  --slug live-dashboard
+```
+
+Hasil branch:
+
+```text
+feat/swarm/agent-24-live-dashboard
+```
+
+Jenis branch yang didukung:
+
+- `feat`
+- `fix`
+- `chore`
+- `docs`
+- `refactor`
+- `test`
+- `perf`
+- `ci`
+- `build`
+- `release`
+- `hotfix`
+
+Automation helper commit/push/PR tetap tersedia di:
 
 ```bash
 ./scripts/git-pr-flow
@@ -247,14 +310,14 @@ Automation helper tersedia di:
 
 Flow yang dikerjakan script ini:
 
-1. switch atau buat branch fitur
+1. switch atau buat branch kerja
 2. stage semua perubahan
 3. commit jika working tree kotor
 4. push branch ke `origin`
 5. buat PR otomatis jika `gh` atau `GH_TOKEN` / `GITHUB_TOKEN` tersedia
 6. fallback ke compare URL jika auth PR belum tersedia
 
-Contoh:
+Contoh dengan branch eksplisit:
 
 ```bash
 ./scripts/git-pr-flow \
@@ -264,18 +327,30 @@ Contoh:
   --body "Refine layout spacing and interaction polish."
 ```
 
+Contoh dengan branch standar otomatis:
+
+```bash
+./scripts/git-pr-flow \
+  --type fix \
+  --scope swarm \
+  --ticket BUG-42 \
+  --slug stop-loop \
+  --message "Fix swarm stop handling"
+```
+
 Mode push-only:
 
 ```bash
 ./scripts/git-pr-flow \
-  --branch feat/swarm-copy \
-  --message "Refine swarm copy" \
+  --type chore \
+  --slug ci-cleanup \
+  --message "Clean CI workflow" \
   --push-only
 ```
 
 Catatan:
 
-- untuk create PR otomatis, paling praktis pakai `gh auth login`
+- untuk create PR otomatis, paling praktis pakai `./scripts/gh-auth-login.sh`
 - alternatifnya set `GH_TOKEN` atau `GITHUB_TOKEN`
 - kalau auth PR belum ada, script akan memberi compare URL GitHub yang siap dibuka
 
@@ -284,7 +359,20 @@ Catatan:
 Pemeriksaan yang relevan:
 
 ```bash
-python3 -m py_compile scripts/codex_agent.py
+python3 -m py_compile \
+  scripts/codex_agent.py \
+  scripts/git_flow_common.py \
+  scripts/git_pr_flow.py \
+  scripts/start_work_branch.py \
+  tests/smoke_runner.py
+
+bash -n \
+  scripts/install-gh-local.sh \
+  scripts/gh-auth-login.sh \
+  scripts/git-pr-flow \
+  scripts/start-work-branch
+
+env AI_AGENT_SMOKE_TESTS=gh-install,gh-auth,branch-helper python3 tests/smoke_runner.py
 bash -n scripts/launch-cli-hub.sh
 bash -n scripts/launch-agent-swarm.sh
 node --check server/swarm-server.js

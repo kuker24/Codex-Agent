@@ -610,8 +610,194 @@ def test_swarm_stop_semantics() -> None:
             terminate_process(process)
 
 
+def test_gh_local_install_helper() -> None:
+    log("test gh local install helper")
+    with tempfile.TemporaryDirectory(prefix="ai-agent-gh-install-", ignore_cleanup_errors=True) as temp_dir:
+        temp = Path(temp_dir)
+        package_root = temp / "gh_9.9.9_linux_amd64"
+        gh_bin = package_root / "bin" / "gh"
+        write_executable(gh_bin, "#!/usr/bin/env bash\necho gh version 9.9.9-stub\n")
+        archive = temp / "gh-stub.tar.gz"
+        run(["tar", "-czf", str(archive), "-C", str(temp), package_root.name])
+
+        install_root = temp / "install-root"
+        bin_dir = temp / "bin"
+        env = os.environ.copy()
+        env["GH_INSTALL_VERSION"] = "v9.9.9-test"
+        env["GH_INSTALL_TARBALL_URL"] = archive.resolve().as_uri()
+        env["GH_INSTALL_ROOT"] = str(install_root)
+        env["GH_BIN_DIR"] = str(bin_dir)
+
+        result = run(["bash", str(ROOT_DIR / "scripts/install-gh-local.sh")], env=env)
+        require("gh installed at" in result.stdout, f"installer gh tidak memberi output install yang benar: {result.stdout}")
+        installed = bin_dir / "gh"
+        require(installed.exists(), "binary gh hasil install tidak ditemukan")
+        version = run([str(installed), "--version"], env=env)
+        require("gh version 9.9.9-stub" in version.stdout, f"binary gh hasil install salah: {version.stdout}")
+
+
+def test_gh_auth_login_helper_with_token() -> None:
+    log("test gh auth login helper with token")
+    with tempfile.TemporaryDirectory(prefix="ai-agent-gh-auth-", ignore_cleanup_errors=True) as temp_dir:
+        temp = Path(temp_dir)
+        log_path = temp / "gh-log.jsonl"
+        state_path = temp / "gh-state.txt"
+        gh_stub = write_executable(
+            temp / "gh",
+            textwrap.dedent(
+                f"""#!/usr/bin/env bash
+                set -euo pipefail
+                LOG_PATH={json.dumps(str(log_path))}
+                STATE_PATH={json.dumps(str(state_path))}
+                ARGS="$*"
+                STDIN_PAYLOAD=""
+                if [[ "${{1:-}}" == "auth" && "${{2:-}}" == "login" ]]; then
+                  STDIN_PAYLOAD="$(cat)"
+                fi
+                printf '%s\t%s\n' "$ARGS" "$STDIN_PAYLOAD" >> "$LOG_PATH"
+                if [[ "${{1:-}}" == "auth" && "${{2:-}}" == "status" ]]; then
+                  [[ -f "$STATE_PATH" ]] && exit 0 || exit 1
+                fi
+                if [[ "${{1:-}}" == "auth" && "${{2:-}}" == "login" ]]; then
+                  printf 'ok' > "$STATE_PATH"
+                  echo 'login ok'
+                  exit 0
+                fi
+                if [[ "${{1:-}}" == "auth" && "${{2:-}}" == "setup-git" ]]; then
+                  echo 'setup ok'
+                  exit 0
+                fi
+                if [[ "${{1:-}}" == "--version" ]]; then
+                  echo 'gh version stub'
+                  exit 0
+                fi
+                exit 0
+                """
+            ),
+        )
+
+        env = os.environ.copy()
+        env["PATH"] = f"{temp}:{env.get('PATH', '')}"
+        env["GH_TOKEN"] = "stub-token-123"
+        result = run(["bash", str(ROOT_DIR / "scripts/gh-auth-login.sh")], env=env)
+        require(result.returncode == 0, f"gh auth helper gagal: {result.stdout}\n{result.stderr}")
+        require(state_path.exists(), "gh auth helper tidak menyelesaikan login")
+
+        entries = []
+        for line in log_path.read_text().splitlines():
+            if not line.strip():
+                continue
+            args_text, stdin_payload = line.split("	", 1)
+            entries.append((args_text.split(), stdin_payload))
+        argv_list = [argv for argv, _stdin in entries]
+        require(any(argv[:2] == ["auth", "login"] and "--with-token" in argv for argv in argv_list), f"gh auth login --with-token tidak terpanggil: {argv_list}")
+        require(any(argv[:2] == ["auth", "setup-git"] for argv in argv_list), f"gh auth setup-git tidak terpanggil: {argv_list}")
+        require(any(stdin_payload == "stub-token-123" for argv, stdin_payload in entries if argv[:2] == ["auth", "login"]), "token tidak diteruskan ke gh auth login")
+
+
+def test_git_pr_flow_branch_builder() -> None:
+    log("test git pr flow branch builder")
+    with tempfile.TemporaryDirectory(prefix="ai-agent-pr-flow-", ignore_cleanup_errors=True) as temp_dir:
+        temp = Path(temp_dir)
+        origin = temp / "origin.git"
+        repo = temp / "repo"
+        run(["git", "init", "--bare", str(origin)])
+        repo.mkdir(parents=True, exist_ok=True)
+        run(["git", "init", "-b", "main"], cwd=repo)
+        run(["git", "config", "user.name", "Smoke Tester"], cwd=repo)
+        run(["git", "config", "user.email", "smoke@example.com"], cwd=repo)
+        run(["git", "remote", "add", "origin", str(origin)], cwd=repo)
+        (repo / "README.md").write_text("hello\n", encoding="utf-8")
+        run(["git", "add", "README.md"], cwd=repo)
+        run(["git", "commit", "-m", "init"], cwd=repo)
+        run(["git", "push", "-u", "origin", "main"], cwd=repo)
+
+        (repo / "README.md").write_text("changed\n", encoding="utf-8")
+        result = run(
+            [
+                sys.executable,
+                str(ROOT_DIR / "scripts/git_pr_flow.py"),
+                "--type",
+                "feat",
+                "--scope",
+                "swarm",
+                "--ticket",
+                "BUG-42",
+                "--slug",
+                "stop-loop",
+                "--message",
+                "test branch helper",
+                "--push-only",
+            ],
+            cwd=repo,
+        )
+        require("Push selesai untuk branch feat/swarm/bug-42-stop-loop." in result.stdout, f"output git_pr_flow salah: {result.stdout}")
+        branch = run(["git", "branch", "--show-current"], cwd=repo).stdout.strip()
+        require(branch == "feat/swarm/bug-42-stop-loop", f"git_pr_flow branch aktif salah: {branch}")
+        remote = run(["git", "ls-remote", "--heads", "origin", "feat/swarm/bug-42-stop-loop"], cwd=repo).stdout.strip()
+        require(bool(remote), "git_pr_flow tidak push branch builder ke origin")
+
+
+def test_start_work_branch_helper() -> None:
+    log("test start work branch helper")
+    with tempfile.TemporaryDirectory(prefix="ai-agent-branch-helper-", ignore_cleanup_errors=True) as temp_dir:
+        repo = Path(temp_dir) / "repo"
+        repo.mkdir(parents=True, exist_ok=True)
+        run(["git", "init", "-b", "main"], cwd=repo)
+        run(["git", "config", "user.name", "Smoke Tester"], cwd=repo)
+        run(["git", "config", "user.email", "smoke@example.com"], cwd=repo)
+        (repo / "README.md").write_text("hello\n", encoding="utf-8")
+        run(["git", "add", "README.md"], cwd=repo)
+        run(["git", "commit", "-m", "init"], cwd=repo)
+
+        result = run(
+            [
+                sys.executable,
+                str(ROOT_DIR / "scripts/start_work_branch.py"),
+                "--cwd",
+                str(repo),
+                "--type",
+                "fix",
+                "--scope",
+                "swarm",
+                "--ticket",
+                "BUG-42",
+                "--slug",
+                "stop-loop",
+                "--no-fetch",
+            ],
+            cwd=repo,
+        )
+        require("Active branch: fix/swarm/bug-42-stop-loop" in result.stdout, f"branch helper output salah: {result.stdout}")
+        branch = run(["git", "branch", "--show-current"], cwd=repo).stdout.strip()
+        require(branch == "fix/swarm/bug-42-stop-loop", f"branch aktif salah: {branch}")
+
+        (repo / "README.md").write_text("dirty\n", encoding="utf-8")
+        dirty = run(
+            [
+                sys.executable,
+                str(ROOT_DIR / "scripts/start_work_branch.py"),
+                "--cwd",
+                str(repo),
+                "--type",
+                "chore",
+                "--slug",
+                "cleanup",
+                "--no-fetch",
+            ],
+            cwd=repo,
+            check=False,
+        )
+        require(dirty.returncode != 0, "branch helper seharusnya menolak working tree kotor")
+        require("Working tree kotor" in dirty.stderr or "Working tree kotor" in dirty.stdout, f"pesan dirty branch helper salah: {dirty.stdout}\n{dirty.stderr}")
+
+
 TESTS = [
     ("wrapper", test_wrapper_install_and_dispatch),
+    ("gh-install", test_gh_local_install_helper),
+    ("gh-auth", test_gh_auth_login_helper_with_token),
+    ("pr-flow", test_git_pr_flow_branch_builder),
+    ("branch-helper", test_start_work_branch_helper),
     ("swarm-launcher", test_swarm_launcher_entrypoint),
     ("grid-interactive", test_grid_interactive_smoke),
     ("grid-split", test_grid_split_workspace_smoke),
