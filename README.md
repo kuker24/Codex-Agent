@@ -179,6 +179,12 @@ Regression smoke suite yang sekarang tersedia:
 npm test
 ```
 
+Anda juga bisa memilih subset test tertentu:
+
+```bash
+AI_AGENT_SMOKE_TESTS=wrapper,swarm-launcher,web-two-panel,swarm-stop npm test
+```
+
 Yang diverifikasi:
 
 - install dan dispatch wrapper `codex agent`
@@ -216,6 +222,12 @@ Workflow ini berjalan pada `push`, `pull_request`, dan `workflow_dispatch`, lalu
 - menjalankan static validation
 - menjalankan smoke suite standar pada `push` dan `pull_request`
 - menyediakan jalur manual `workflow_dispatch` untuk real Electron smoke bila ingin diuji di CI
+
+Catatan CI:
+
+- `npm test` lokal tetap menjalankan full suite, termasuk grid `tmux`
+- workflow GitHub default memakai subset smoke yang paling stabil lintas runner
+- grid `tmux` dan real Electron tetap tersedia untuk verifikasi lokal / manual dispatch
 
 ## Verifikasi
 

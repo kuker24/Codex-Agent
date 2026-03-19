@@ -54,7 +54,7 @@ jobs:
           node --check desktop/main.cjs
 
       - name: Run smoke suite
-        run: npm test
+        run: env AI_AGENT_SMOKE_TESTS=wrapper,swarm-launcher,web-two-panel,swarm-stop npm test
 
   electron-smoke:
     needs: smoke
@@ -86,4 +86,4 @@ jobs:
         run: npm ci
 
       - name: Run real Electron smoke
-        run: xvfb-run -a env AI_AGENT_SMOKE_ELECTRON_REAL=1 python3 tests/smoke_runner.py
+        run: xvfb-run -a env AI_AGENT_SMOKE_TESTS=wrapper,swarm-launcher,web-two-panel,real-electron,swarm-stop AI_AGENT_SMOKE_ELECTRON_REAL=1 python3 tests/smoke_runner.py

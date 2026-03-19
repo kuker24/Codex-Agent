@@ -611,19 +611,42 @@ def test_swarm_stop_semantics() -> None:
 
 
 TESTS = [
-    test_wrapper_install_and_dispatch,
-    test_swarm_launcher_entrypoint,
-    test_grid_interactive_smoke,
-    test_grid_split_workspace_smoke,
-    test_web_two_panel_sync,
-    test_real_electron_boot_smoke,
-    test_swarm_stop_semantics,
+    ("wrapper", test_wrapper_install_and_dispatch),
+    ("swarm-launcher", test_swarm_launcher_entrypoint),
+    ("grid-interactive", test_grid_interactive_smoke),
+    ("grid-split", test_grid_split_workspace_smoke),
+    ("web-two-panel", test_web_two_panel_sync),
+    ("real-electron", test_real_electron_boot_smoke),
+    ("swarm-stop", test_swarm_stop_semantics),
 ]
+
+
+def selected_tests() -> list[tuple[str, object]]:
+    raw = os.environ.get("AI_AGENT_SMOKE_TESTS", "").strip()
+    if not raw:
+        return TESTS
+
+    requested = [item.strip() for item in raw.split(",") if item.strip()]
+    by_name = {name: fn for name, fn in TESTS}
+    selected: list[tuple[str, object]] = []
+    missing: list[str] = []
+    for name in requested:
+        fn = by_name.get(name)
+        if fn is None:
+            missing.append(name)
+            continue
+        selected.append((name, fn))
+
+    if missing:
+        raise SmokeFailure(f"Unknown smoke test name(s): {', '.join(missing)}")
+    if not selected:
+        raise SmokeFailure("AI_AGENT_SMOKE_TESTS tidak memilih test apa pun.")
+    return selected
 
 
 def main() -> int:
     started = time.time()
-    for test in TESTS:
+    for _name, test in selected_tests():
         test()
     log(f"all smoke tests passed in {time.time() - started:.1f}s")
     return 0
