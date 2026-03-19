@@ -379,7 +379,6 @@ def test_grid_interactive_smoke() -> None:
                 "Pilih strategi workspace untuk agent.",
                 "Ditemukan history workspace yang cocok.",
                 "Lanjut launch Codex Agent?",
-                "Tandai workspace yang ingin disimpan sebagai favorite.",
             ]
             answered = 0
             output = ""

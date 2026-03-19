@@ -52,11 +52,6 @@ if ! command -v "${CODEX_BIN}" >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v "${ALACRITTY_BIN}" >/dev/null 2>&1; then
-  echo "Alacritty binary not found: ${ALACRITTY_BIN}" >&2
-  exit 1
-fi
-
 declare -a AGENT_WORKSPACES=()
 
 normalize_workspace() {
@@ -283,7 +278,17 @@ if [[ "${DETACHED_MODE}" == "1" ]]; then
   exit 0
 fi
 
-exec "${ALACRITTY_BIN}" \
+if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
+  echo "No graphical display detected. Attaching tmux in current terminal."
+  exec "${TMUX_BIN}" attach -t "${SESSION_NAME}"
+fi
+
+if ! command -v "${ALACRITTY_BIN}" >/dev/null 2>&1; then
+  echo "Alacritty binary not found: ${ALACRITTY_BIN}. Attaching tmux in current terminal."
+  exec "${TMUX_BIN}" attach -t "${SESSION_NAME}"
+fi
+
+if "${ALACRITTY_BIN}" \
   --title "AI Agent Hub CLI" \
   --class "AIAgentHubCLI,AIAgentHubCLI" \
   --working-directory "${WORKSPACE}" \
@@ -293,4 +298,9 @@ exec "${ALACRITTY_BIN}" \
   -o "font.italic.family=\"${FONT_FAMILY}\"" \
   -o "font.bold_italic.family=\"${FONT_FAMILY}\"" \
   -o "font.size=${FONT_SIZE}" \
-  -e "${TMUX_BIN}" attach -t "${SESSION_NAME}"
+  -e "${TMUX_BIN}" attach -t "${SESSION_NAME}"; then
+  exit 0
+fi
+
+echo "Failed to launch Alacritty. Attaching tmux in current terminal."
+exec "${TMUX_BIN}" attach -t "${SESSION_NAME}"

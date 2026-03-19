@@ -803,6 +803,20 @@ def choose_favorites(store: WorkspaceStore, selected_workspaces: list[str]) -> s
     return defaults
 
 
+def current_favorites(store: WorkspaceStore, selected_workspaces: list[str]) -> set[str]:
+    favorites: set[str] = set()
+    for path in dict.fromkeys(normalize_path(item) for item in selected_workspaces):
+        record = store.workspaces.get(path, WorkspaceRecord(path=path))
+        if record.favorite:
+            favorites.add(path)
+    return favorites
+
+
+def should_prompt_favorites() -> bool:
+    raw = (os.environ.get("CODEX_AGENT_PROMPT_FAVORITES") or "0").strip().lower()
+    return raw in {"1", "true", "yes", "y", "on"}
+
+
 def show_message(message: str) -> None:
     for mode in available_ui_modes():
         if mode == "whiptail":
@@ -927,14 +941,20 @@ def main() -> int:
                 workspace_mode = choose_workspace_mode(store.last_workspace_mode if store.last_workspace_mode in WORKSPACE_MODES else "shared")
                 workspaces = choose_workspaces(store, panel_count, workspace_mode, cwd)
                 confirm_launch(panel_count, workspace_mode, workspaces)
-                chosen_favorites = choose_favorites(store, workspaces)
+                if should_prompt_favorites():
+                    chosen_favorites = choose_favorites(store, workspaces)
+                else:
+                    chosen_favorites = current_favorites(store, workspaces)
             else:
                 swarm_profile = choose_swarm_profile(store.last_swarm_profile)
                 swarm_workspace = choose_workspace(store, title="Workspace Agent Swarm", current_dir=cwd, excluded=set())
                 swarm_objective = choose_swarm_objective()
                 search_enabled = choose_swarm_search(default_enabled=args.search)
                 confirm_swarm_launch(swarm_objective, swarm_workspace, swarm_profile, search_enabled)
-                chosen_favorites = choose_favorites(store, [swarm_workspace])
+                if should_prompt_favorites():
+                    chosen_favorites = choose_favorites(store, [swarm_workspace])
+                else:
+                    chosen_favorites = current_favorites(store, [swarm_workspace])
         except UserCancelled:
             print("Launch dibatalkan.")
             return 1
