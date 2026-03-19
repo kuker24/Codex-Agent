@@ -1,0 +1,105 @@
+[window]
+startup_mode = "Maximized"
+padding = { x = 14, y = 14 }
+dynamic_padding = true
+opacity = 0.94
+blur = true
+decorations = "Full"
+dynamic_title = true
+
+[scrolling]
+history = 20000
+multiplier = 3
+
+[font]
+size = 10.5
+
+[colors.primary]
+background = "#101113"
+foreground = "#F5F5F7"
+dim_foreground = "#B7B7BD"
+bright_foreground = "#FFFFFF"
+
+[colors.cursor]
+text = "#101113"
+cursor = "#F5F5F7"
+
+[colors.vi_mode_cursor]
+text = "#101113"
+cursor = "#64D2FF"
+
+[colors.selection]
+text = "CellForeground"
+background = "#2C2C2E"
+
+[colors.search.matches]
+foreground = "#101113"
+background = "#FFD60A"
+
+[colors.search.focused_match]
+foreground = "#101113"
+background = "#30D158"
+
+[colors.footer_bar]
+foreground = "#F5F5F7"
+background = "#1C1C1E"
+
+[colors.hints.start]
+foreground = "#101113"
+background = "#FFD60A"
+
+[colors.hints.end]
+foreground = "#F5F5F7"
+background = "#2C2C2E"
+
+[colors.line_indicator]
+foreground = "None"
+background = "None"
+
+[colors.normal]
+black = "#1C1C1E"
+red = "#FF453A"
+green = "#30D158"
+yellow = "#FFD60A"
+blue = "#0A84FF"
+magenta = "#BF5AF2"
+cyan = "#64D2FF"
+white = "#F2F2F7"
+
+[colors.bright]
+black = "#48484A"
+red = "#FF6961"
+green = "#5AF78E"
+yellow = "#FFE066"
+blue = "#5AC8FA"
+magenta = "#DA8FFF"
+cyan = "#8FEAFF"
+white = "#FFFFFF"
+
+[colors.dim]
+black = "#141416"
+red = "#B63B32"
+green = "#238A4C"
+yellow = "#B89A07"
+blue = "#0862BC"
+magenta = "#8E45BE"
+cyan = "#3F9FBE"
+white = "#C6C6CC"
+
+[cursor]
+style = { shape = "Beam", blinking = "On" }
+blink_interval = 500
+unfocused_hollow = true
+
+[bell]
+animation = "EaseOutExpo"
+duration = 0
+
+[selection]
+save_to_clipboard = true
+
+[mouse]
+hide_when_typing = true
+
+[terminal]
+shell = { program = "/usr/bin/bash", args = ["-l"] }

@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Codex Agent Swarm</title>
+    <link rel="stylesheet" href="/assets/swarm.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="command-deck panel-shell">
+        <div class="command-copy">
+          <p class="eyebrow">Autonomous Codex Mesh</p>
+          <h1>Agent Swarm</h1>
+          <p class="subtitle">Mission control untuk swarm Codex: phase engine, skill routing, komunikasi antarpelaku, raw JSON event, dan synthesis akhir dalam satu aplikasi mission control live.</p>
+        </div>
+
+        <form id="swarm-form" class="swarm-form">
+          <label class="field field-wide">
+            <span>Objective</span>
+            <textarea id="objective" name="objective" rows="4" placeholder="Jelaskan target swarm Anda."></textarea>
+          </label>
+
+          <label class="field field-wide">
+            <span>Workspace</span>
+            <input id="workspace" name="workspace" type="text" list="workspace-options" autocomplete="off" />
+            <datalist id="workspace-options"></datalist>
+          </label>
+
+          <label class="field">
+            <span>Swarm Profile</span>
+            <select id="profile" name="profile"></select>
+          </label>
+
+          <label class="field">
+            <span>Model</span>
+            <input id="model" name="model" type="text" autocomplete="off" placeholder="default" />
+          </label>
+
+          <label class="field">
+            <span>Sandbox</span>
+            <select id="sandbox" name="sandbox">
+              <option value="workspace-write">workspace-write</option>
+              <option value="read-only">read-only</option>
+              <option value="danger-full-access">danger-full-access</option>
+            </select>
+          </label>
+
+          <label class="toggle-field">
+            <input id="search-enabled" name="searchEnabled" type="checkbox" />
+            <span>Aktifkan live web search global untuk swarm</span>
+          </label>
+
+          <div class="action-row">
+            <button type="submit" class="primary">Start Swarm</button>
+            <button type="button" id="stop-run" class="ghost">Stop</button>
+          </div>
+        </form>
+      </header>
+
+      <section class="hero-grid">
+        <article class="panel-shell hero-card hero-card--mission">
+          <div class="mission-head">
+            <p class="eyebrow">Mission Ledger</p>
+            <h2 id="run-status">Idle</h2>
+            <p id="run-phase" class="hero-phase">Menunggu objective.</p>
+          </div>
+          <div class="metric-row">
+            <div>
+              <span class="metric-label">Profile</span>
+              <strong id="metric-profile">-</strong>
+            </div>
+            <div>
+              <span class="metric-label">Workspace</span>
+              <strong id="metric-workspace">-</strong>
+            </div>
+            <div>
+              <span class="metric-label">Skills</span>
+              <strong id="metric-skills">-</strong>
+            </div>
+            <div>
+              <span class="metric-label">Agents</span>
+              <strong id="metric-agents">-</strong>
+            </div>
+          </div>
+          <div class="phase-rail" id="phase-rail"></div>
+        </article>
+
+        <article class="panel-shell hero-card hero-card--topology">
+          <div class="topology-head">
+            <p class="eyebrow">Swarm Topology</p>
+            <div id="topology-caption" class="topology-caption">Belum ada run aktif.</div>
+          </div>
+          <div class="topology-stage">
+            <svg id="topology-svg" viewBox="0 0 820 420" preserveAspectRatio="xMidYMid meet"></svg>
+          </div>
+        </article>
+      </section>
+
+      <section class="skill-band panel-shell">
+        <div class="band-head">
+          <div>
+            <p class="eyebrow">Skill Routing</p>
+            <h2>Installed Codex Skills</h2>
+          </div>
+          <p id="skill-band-status" class="band-status">Skill catalog dimuat dari instalasi lokal Codex Anda.</p>
+        </div>
+        <div id="skill-band" class="skill-band__chips"></div>
+      </section>
+
+      <section class="detail-grid">
+        <article class="panel-shell event-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Inter-Agent Feed</p>
+              <h2>Communication Stream</h2>
+            </div>
+            <span id="event-counter" class="counter-pill">0 event</span>
+          </div>
+          <div id="event-feed" class="event-feed"></div>
+        </article>
+
+        <article class="panel-shell final-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Final Synthesis</p>
+              <h2>Swarm Output</h2>
+            </div>
+          </div>
+          <pre id="final-report" class="final-report">Belum ada synthesis.</pre>
+        </article>
+      </section>
+
+      <main>
+        <section class="agents-headline">
+          <div>
+            <p class="eyebrow">Raw Agent View</p>
+            <h2>Per-Agent Codex Trace</h2>
+          </div>
+          <p class="agents-note">Setiap card menampilkan role, skill yang dirouting, thread id, summary, dan raw log JSON/event dari `codex exec --json`.</p>
+        </section>
+        <section class="agents-grid" id="agents-grid"></section>
+      </main>
+    </div>
+
+    <template id="agent-card-template">
+      <article class="agent-card panel-shell">
+        <header class="agent-card__header">
+          <div>
+            <p class="agent-role"></p>
+            <h3 class="agent-title"></h3>
+          </div>
+          <div class="agent-meta">
+            <span class="agent-status-dot"></span>
+            <span class="agent-status-text"></span>
+          </div>
+        </header>
+
+        <div class="agent-card__summary"></div>
+        <div class="agent-thread"></div>
+        <div class="agent-skills"></div>
+        <pre class="agent-result"></pre>
+        <pre class="agent-log"></pre>
+      </article>
+    </template>
+
+    <script type="module" src="/assets/swarm.js"></script>
+  </body>
+</html>

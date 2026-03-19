@@ -1,0 +1,11 @@
+node_modules/
+npm-debug.log*
+.DS_Store
+*.log
+.build/
+.tools/
+__pycache__/
+*.pyc
+*.pyo
+.cache/
+.pytest_cache/

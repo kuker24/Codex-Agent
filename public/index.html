@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Agent Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/vendor/xterm-css/xterm.css" />
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="control-bar">
+        <div class="title-block">
+          <p class="eyebrow">Codex Grid Console</p>
+          <h1>AI Agent Hub</h1>
+          <p class="subtitle">2 sampai 6 panel Codex aktif dalam satu layar laptop, dihitung langsung dari viewport Anda.</p>
+        </div>
+
+        <form class="controls" id="settings-form">
+          <label>
+            <span>Panel</span>
+            <select id="panel-count" name="panelCount">
+              <option value="2">2 Panel</option>
+              <option value="4">4 Panel</option>
+              <option value="5">5 Panel</option>
+              <option value="6">6 Panel</option>
+            </select>
+          </label>
+
+          <label class="wide-field">
+            <span>Workspace</span>
+            <input id="workspace" name="workspace" type="text" autocomplete="off" />
+          </label>
+
+          <label>
+            <span>Model</span>
+            <input id="model" name="model" type="text" placeholder="default" autocomplete="off" />
+          </label>
+
+          <label>
+            <span>Sandbox</span>
+            <select id="sandbox" name="sandbox">
+              <option value="workspace-write">workspace-write</option>
+              <option value="read-only">read-only</option>
+              <option value="danger-full-access">danger-full-access</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Approval</span>
+            <select id="approval" name="approval">
+              <option value="on-request">on-request</option>
+              <option value="never">never</option>
+              <option value="untrusted">untrusted</option>
+            </select>
+          </label>
+
+          <div class="control-actions">
+            <button type="submit" class="primary">Terapkan</button>
+            <button type="button" id="restart-all">Restart Semua</button>
+          </div>
+        </form>
+      </header>
+
+      <section class="status-strip">
+        <div>
+          <span class="status-label">Viewport</span>
+          <strong id="viewport-metric">-</strong>
+        </div>
+        <div>
+          <span class="status-label">Layout</span>
+          <strong id="layout-metric">-</strong>
+        </div>
+        <div>
+          <span class="status-label">Codex</span>
+          <strong id="codex-binary">-</strong>
+        </div>
+        <div class="status-message" id="status-message">Menyiapkan sesi Codex...</div>
+      </section>
+
+      <main class="grid-shell">
+        <section class="agent-grid" id="agent-grid"></section>
+      </main>
+    </div>
+
+    <template id="agent-card-template">
+      <article class="agent-card">
+        <header class="agent-card__header">
+          <div>
+            <p class="agent-index"></p>
+            <h2 class="agent-name"></h2>
+          </div>
+          <div class="agent-meta-stack">
+            <p class="agent-resolution"></p>
+            <div class="agent-status-row">
+              <span class="agent-status-dot"></span>
+              <span class="agent-status-text"></span>
+              <button type="button" class="ghost-button restart-button">Restart</button>
+            </div>
+          </div>
+        </header>
+
+        <div class="agent-card__body">
+          <div class="terminal-frame">
+            <div class="terminal-host"></div>
+          </div>
+        </div>
+
+        <footer class="agent-card__footer">
+          <span class="agent-command"></span>
+        </footer>
+      </article>
+    </template>
+
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+</html>

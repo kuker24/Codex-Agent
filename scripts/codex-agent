@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+AI_AGENT_HUB_ROOT="${AI_AGENT_HUB_ROOT:-${ROOT_DIR}}"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+
+if [[ ! -f "${AI_AGENT_HUB_ROOT}/scripts/codex_agent.py" ]]; then
+  AI_AGENT_HUB_ROOT="${ROOT_DIR}"
+fi
+
+exec "${PYTHON_BIN}" "${AI_AGENT_HUB_ROOT}/scripts/codex_agent.py" "$@"

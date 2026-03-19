@@ -1,0 +1,81 @@
+{
+  "adaptive": {
+    "label": "Adaptive Autonomous Swarm",
+    "description": "Mode default yang melakukan planning, repo discovery, skill routing, build jika dibutuhkan, lalu review dan synthesis akhir.",
+    "accent": "teal",
+    "roles": [
+      {
+        "id": "lead",
+        "title": "Swarm Lead",
+        "purpose": "Merancang plan, mengirim handoff, dan menggabungkan hasil semua agent.",
+        "defaultSandbox": "read-only",
+        "preferredSkills": ["full-orchestrator-max-otonom", "full-master-plan", "full-review"]
+      },
+      {
+        "id": "scout",
+        "title": "Repo Mapper",
+        "purpose": "Memetakan codebase, constraint, file penting, dan resiko awal.",
+        "defaultSandbox": "read-only",
+        "preferredSkills": ["full-init", "full-debug", "full-bug-hunter"]
+      },
+      {
+        "id": "router",
+        "title": "Skill Router",
+        "purpose": "Memilih skill Codex yang paling relevan untuk objective aktif.",
+        "defaultSandbox": "read-only",
+        "preferredSkills": ["full-orchestrator-max-otonom", "full-master-plan", "full-review"]
+      },
+      {
+        "id": "builder",
+        "title": "Builder",
+        "purpose": "Menjalankan perubahan atau deliverable utama secara otonom bila memang diperlukan.",
+        "defaultSandbox": "workspace-write",
+        "preferredSkills": ["full-enhance-perfoma", "full-refactoring-max", "full-setup-project"]
+      },
+      {
+        "id": "reviewer",
+        "title": "Verifier",
+        "purpose": "Mereview hasil builder, regression risk, dan kualitas evidence akhir.",
+        "defaultSandbox": "read-only",
+        "preferredSkills": ["full-review", "full-test", "full-audit-keamanan"]
+      }
+    ],
+    "phases": ["plan", "discovery", "build", "review", "synthesis"]
+  },
+  "analysis": {
+    "label": "Analysis Swarm",
+    "description": "Mode read-only untuk audit, investigasi, planning, dan skill routing tanpa perubahan file.",
+    "accent": "amber",
+    "roles": [
+      {
+        "id": "lead",
+        "title": "Swarm Lead",
+        "purpose": "Mengkoordinasikan analisis dan menyusun hasil akhir.",
+        "defaultSandbox": "read-only",
+        "preferredSkills": ["full-orchestrator-max-otonom", "full-master-plan", "full-review"]
+      },
+      {
+        "id": "scout",
+        "title": "Repo Mapper",
+        "purpose": "Menganalisis workspace, arsitektur, dan risk surface.",
+        "defaultSandbox": "read-only",
+        "preferredSkills": ["full-init", "full-bug-hunter", "full-audit-keamanan"]
+      },
+      {
+        "id": "router",
+        "title": "Skill Router",
+        "purpose": "Memilih skill Codex yang paling sesuai untuk objective aktif.",
+        "defaultSandbox": "read-only",
+        "preferredSkills": ["full-orchestrator-max-otonom", "full-master-plan", "full-review"]
+      },
+      {
+        "id": "reviewer",
+        "title": "Verifier",
+        "purpose": "Menguji konsistensi temuan dan prioritas eksekusi.",
+        "defaultSandbox": "read-only",
+        "preferredSkills": ["full-review", "full-test", "full-audit-keamanan"]
+      }
+    ],
+    "phases": ["plan", "discovery", "review", "synthesis"]
+  }
+}
