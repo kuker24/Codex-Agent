@@ -30,7 +30,7 @@
         "title": "Builder",
         "purpose": "Menjalankan perubahan atau deliverable utama secara otonom bila memang diperlukan.",
         "defaultSandbox": "workspace-write",
-        "preferredSkills": ["full-enhance-perfoma", "full-refactoring-max", "full-setup-project"]
+        "preferredSkills": ["full-optimize-performa", "full-refactoring-max", "full-setup-project"]
       },
       {
         "id": "reviewer",

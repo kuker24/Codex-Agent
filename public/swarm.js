@@ -6,7 +6,16 @@ const state = {
   run: null,
   socket: null,
   signals: [],
+  authHeader: 'x-ai-agent-token',
+  authToken: '',
+  constraints: null,
+  topologyDirty: true,
 };
+
+const UI_RENDER_THROTTLE_MS = 120;
+let agentsRenderTimer = 0;
+let eventFeedRenderTimer = 0;
+let metricsRenderTimer = 0;
 
 const form = document.getElementById('swarm-form');
 const objectiveInput = document.getElementById('objective');
@@ -47,7 +56,7 @@ stopButton.addEventListener('click', async () => {
   if (!state.run) {
     return;
   }
-  await fetch(`/api/swarm/${encodeURIComponent(state.run.id)}/stop`, { method: 'POST' });
+  await authorizedFetch(`/api/swarm/${encodeURIComponent(state.run.id)}/stop`, { method: 'POST' });
 });
 
 async function bootstrap() {
@@ -58,7 +67,11 @@ async function bootstrap() {
   state.skillCatalog = payload.skillCatalog || [];
   state.workspaces = payload.workspaces || [];
   state.run = payload.activeRun || null;
+  state.authHeader = payload.auth?.header || state.authHeader;
+  state.authToken = payload.auth?.token || '';
+  state.constraints = payload.constraints || null;
   hydrateForm();
+  applyConstraints();
   renderWorkspaceOptions();
   renderSkillBand();
   renderAll();
@@ -66,7 +79,11 @@ async function bootstrap() {
 
 function connectSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  state.socket = new WebSocket(`${protocol}://${window.location.host}/ws`);
+  const url = new URL(`${protocol}://${window.location.host}/ws`);
+  if (state.authToken) {
+    url.searchParams.set('token', state.authToken);
+  }
+  state.socket = new WebSocket(url);
 
   state.socket.addEventListener('message', (event) => {
     const message = JSON.parse(event.data);
@@ -77,6 +94,7 @@ function connectSocket() {
       state.workspaces = message.payload.workspaces || [];
       state.run = message.payload.run || null;
       hydrateForm();
+      applyConstraints();
       renderWorkspaceOptions();
       renderSkillBand();
       renderAll();
@@ -85,6 +103,7 @@ function connectSocket() {
 
     if (message.type === 'run') {
       state.run = message.run;
+      state.topologyDirty = true;
       renderAll();
       return;
     }
@@ -95,8 +114,8 @@ function connectSocket() {
       }
       upsertEvent(message.event);
       maybeCreateSignal(message.event);
-      renderEventFeedPanel();
-      renderTopologyStatic();
+      scheduleEventFeedRender();
+      state.topologyDirty = true;
       return;
     }
 
@@ -105,9 +124,9 @@ function connectSocket() {
         return;
       }
       upsertAgent(message.agent);
-      renderAgents();
-      renderMetrics();
-      renderTopologyStatic();
+      scheduleAgentsRender();
+      scheduleMetricsRender();
+      state.topologyDirty = true;
       return;
     }
 
@@ -116,7 +135,7 @@ function connectSocket() {
         return;
       }
       appendAgentLog(message.agentId, message.entry);
-      renderAgents();
+      scheduleAgentsRender();
     }
   });
 
@@ -166,7 +185,7 @@ async function startSwarm() {
     searchEnabled: searchEnabledInput.checked,
   };
 
-  const response = await fetch('/api/swarm/start', {
+  const response = await authorizedFetch('/api/swarm/start', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(payload),
@@ -178,7 +197,68 @@ async function startSwarm() {
   }
   state.run = result.run;
   state.signals = [];
+  state.topologyDirty = true;
   renderAll();
+}
+
+async function authorizedFetch(url, options = {}) {
+  const headers = new Headers(options.headers || {});
+  if (state.authToken) {
+    headers.set(state.authHeader, state.authToken);
+  }
+  return fetch(url, { ...options, headers });
+}
+
+function applyConstraints() {
+  const sandboxChoices = Array.isArray(state.constraints?.sandboxes) && state.constraints.sandboxes.length
+    ? state.constraints.sandboxes
+    : [...sandboxInput.options].map((option) => option.value);
+  rebuildSelect(sandboxInput, sandboxChoices, state.defaults?.sandbox || 'workspace-write');
+}
+
+function rebuildSelect(select, values, preferred) {
+  const selected = values.includes(preferred) ? preferred : values[0] || '';
+  select.innerHTML = '';
+  for (const value of values) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = value;
+    option.selected = value === selected;
+    select.append(option);
+  }
+  if (selected) {
+    select.value = selected;
+  }
+}
+
+function scheduleAgentsRender() {
+  if (agentsRenderTimer) {
+    return;
+  }
+  agentsRenderTimer = window.setTimeout(() => {
+    agentsRenderTimer = 0;
+    renderAgents();
+  }, UI_RENDER_THROTTLE_MS);
+}
+
+function scheduleEventFeedRender() {
+  if (eventFeedRenderTimer) {
+    return;
+  }
+  eventFeedRenderTimer = window.setTimeout(() => {
+    eventFeedRenderTimer = 0;
+    renderEventFeedPanel();
+  }, UI_RENDER_THROTTLE_MS);
+}
+
+function scheduleMetricsRender() {
+  if (metricsRenderTimer) {
+    return;
+  }
+  metricsRenderTimer = window.setTimeout(() => {
+    metricsRenderTimer = 0;
+    renderMetrics();
+  }, UI_RENDER_THROTTLE_MS);
 }
 
 function renderAll() {
@@ -188,6 +268,7 @@ function renderAll() {
   renderEventFeedPanel();
   renderFinalPanel();
   renderAgents();
+  state.topologyDirty = true;
   renderTopologyStatic();
   stopButton.disabled = !state.run || ['completed', 'failed', 'stopped'].includes(state.run.status);
 }
@@ -262,7 +343,7 @@ function renderEventFeedPanel() {
     return;
   }
 
-  const latest = [...events].slice(-60).reverse();
+  const latest = [...events].slice(-35).reverse();
   for (const event of latest) {
     const item = document.createElement('article');
     item.className = 'event-item';
@@ -316,7 +397,7 @@ function renderAgents() {
     }
 
     fragment.querySelector('.agent-result').textContent = agent.result || 'Belum ada output akhir.';
-    fragment.querySelector('.agent-log').textContent = (agent.logs || []).map((entry) => `[${formatTime(entry.at)}] ${entry.kind}\n${entry.text}`).join('\n\n') || 'Belum ada raw log.';
+    fragment.querySelector('.agent-log').textContent = formatAgentLogText(agent.logs || []);
     agentsGrid.append(fragment);
   }
 }
@@ -366,7 +447,10 @@ function renderTopologyStatic() {
 }
 
 function animateTopology() {
-  renderTopologyStatic();
+  if (state.topologyDirty || state.signals.length > 0) {
+    renderTopologyStatic();
+    state.topologyDirty = false;
+  }
   requestAnimationFrame(animateTopology);
 }
 
@@ -408,7 +492,7 @@ function upsertEvent(event) {
     state.run.events[index] = event;
   } else {
     state.run.events.push(event);
-    state.run.events = state.run.events.slice(-300);
+    state.run.events = state.run.events.slice(-180);
   }
 }
 
@@ -428,13 +512,20 @@ function maybeCreateSignal(event) {
     startedAt: performance.now(),
     duration: 1500,
   });
+  state.topologyDirty = true;
 }
 
 function upsertAgent(agent) {
   state.run.agents = state.run.agents || [];
   const index = state.run.agents.findIndex((item) => item.id === agent.id);
   if (index >= 0) {
-    state.run.agents[index] = agent;
+    const existing = state.run.agents[index];
+    const incomingLogs = Array.isArray(agent.logs) ? agent.logs : [];
+    state.run.agents[index] = {
+      ...existing,
+      ...agent,
+      logs: incomingLogs.length > 0 ? incomingLogs : (existing.logs || []),
+    };
   } else {
     state.run.agents.push(agent);
   }
@@ -445,7 +536,17 @@ function appendAgentLog(agentId, entry) {
   if (!agent) {
     return;
   }
-  agent.logs = [...(agent.logs || []), entry].slice(-400);
+  agent.logs = [...(agent.logs || []), entry].slice(-180);
+}
+
+function formatAgentLogText(logs) {
+  const tail = logs.slice(-80);
+  if (tail.length === 0) {
+    return 'Belum ada raw log.';
+  }
+  return tail
+    .map((entry) => `[${formatTime(entry.at)}] ${entry.kind}\n${entry.text}`)
+    .join('\n\n');
 }
 
 function resolvePhaseList(run) {

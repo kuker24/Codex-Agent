@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const http = require('node:http');
 const net = require('node:net');
+const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { app, BrowserWindow, Menu, shell } = require('electron');
@@ -8,7 +9,8 @@ const { app, BrowserWindow, Menu, shell } = require('electron');
 const ROOT_DIR = path.resolve(__dirname, '..');
 const HOST = process.env.HOST || process.env.SWARM_ELECTRON_HOST || '127.0.0.1';
 const DEFAULT_PORT = Number.parseInt(process.env.PORT || process.env.SWARM_ELECTRON_DEFAULT_PORT || '4343', 10);
-const LOG_PATH = process.env.AI_AGENT_SWARM_LOG || '/tmp/ai-agent-swarm.log';
+const DEFAULT_LOG_PATH = path.join(os.homedir(), '.local', 'state', 'ai-agent-hub', 'logs', 'swarm-app.log');
+const LOG_PATH = process.env.AI_AGENT_SWARM_LOG || DEFAULT_LOG_PATH;
 const WINDOW_TITLE = 'Codex Agent Swarm';
 const SERVER_ENTRY = path.join(ROOT_DIR, 'server', 'swarm-server.js');
 const LOADING_PAGE = path.join(ROOT_DIR, 'desktop', 'loading.html');
@@ -119,7 +121,7 @@ function createMainWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
       spellcheck: false,
     },
   });
@@ -140,7 +142,7 @@ function lockNavigation(window, allowedBaseUrl) {
     if (url.startsWith(allowedBaseUrl)) {
       return { action: 'allow' };
     }
-    void shell.openExternal(url);
+    safeOpenExternal(url, allowedBaseUrl);
     return { action: 'deny' };
   });
 
@@ -170,10 +172,35 @@ async function loadLoadingPage(options) {
   mainWindow.setTitle(WINDOW_TITLE);
 }
 
+function safeOpenExternal(rawUrl, allowedBaseUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    const allowed = new Set(['https:', 'mailto:']);
+    if (rawUrl.startsWith(allowedBaseUrl)) {
+      allowed.add('http:');
+    }
+    if (!allowed.has(parsed.protocol)) {
+      return;
+    }
+    void shell.openExternal(parsed.toString());
+  } catch (_error) {
+    // Ignore invalid URL attempts.
+  }
+}
+
 function spawnServer(port) {
   const logDir = path.dirname(LOG_PATH);
-  fs.mkdirSync(logDir, { recursive: true });
-  const logStream = fs.createWriteStream(LOG_PATH, { flags: 'a' });
+  fs.mkdirSync(logDir, { recursive: true, mode: 0o700 });
+  if (!fs.existsSync(LOG_PATH)) {
+    fs.writeFileSync(LOG_PATH, '', { mode: 0o600 });
+  }
+  try {
+    fs.chmodSync(logDir, 0o700);
+    fs.chmodSync(LOG_PATH, 0o600);
+  } catch (_error) {
+    // Ignore chmod issues on unsupported filesystems.
+  }
+  const logStream = fs.createWriteStream(LOG_PATH, { flags: 'a', mode: 0o600 });
   const header = `\n[${new Date().toISOString()}] launch port=${port} workspace=${process.env.SWARM_WORKSPACE || process.cwd()}\n`;
   logStream.write(header);
 

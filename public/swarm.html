@@ -8,17 +8,20 @@
   </head>
   <body>
     <div class="app-shell">
-      <header class="command-deck panel-shell">
-        <div class="command-copy">
-          <p class="eyebrow">Autonomous Codex Mesh</p>
-          <h1>Agent Swarm</h1>
-          <p class="subtitle">Mission control untuk swarm Codex: phase engine, skill routing, komunikasi antarpelaku, raw JSON event, dan synthesis akhir dalam satu aplikasi mission control live.</p>
+      <header class="panel top-panel">
+        <div class="title-row">
+          <div>
+            <p class="eyebrow">Codex Agent Swarm</p>
+            <h1>Swarm Control</h1>
+            <p class="subtitle">Tampilan sederhana untuk menjalankan swarm, memantau progres, dan melihat hasil akhir.</p>
+          </div>
+          <button type="button" id="stop-run" class="ghost">Stop Run</button>
         </div>
 
         <form id="swarm-form" class="swarm-form">
           <label class="field field-wide">
             <span>Objective</span>
-            <textarea id="objective" name="objective" rows="4" placeholder="Jelaskan target swarm Anda."></textarea>
+            <textarea id="objective" name="objective" rows="4" placeholder="Tulis objective swarm secara jelas."></textarea>
           </label>
 
           <label class="field field-wide">
@@ -28,7 +31,7 @@
           </label>
 
           <label class="field">
-            <span>Swarm Profile</span>
+            <span>Profile</span>
             <select id="profile" name="profile"></select>
           </label>
 
@@ -48,23 +51,18 @@
 
           <label class="toggle-field">
             <input id="search-enabled" name="searchEnabled" type="checkbox" />
-            <span>Aktifkan live web search global untuk swarm</span>
+            <span>Aktifkan web search</span>
           </label>
 
-          <div class="action-row">
-            <button type="submit" class="primary">Start Swarm</button>
-            <button type="button" id="stop-run" class="ghost">Stop</button>
-          </div>
+          <button type="submit" class="primary">Start Swarm</button>
         </form>
       </header>
 
-      <section class="hero-grid">
-        <article class="panel-shell hero-card hero-card--mission">
-          <div class="mission-head">
-            <p class="eyebrow">Mission Ledger</p>
-            <h2 id="run-status">Idle</h2>
-            <p id="run-phase" class="hero-phase">Menunggu objective.</p>
-          </div>
+      <section class="summary-grid">
+        <article class="panel">
+          <p class="eyebrow">Run Status</p>
+          <h2 id="run-status">Idle</h2>
+          <p id="run-phase" class="muted">Menunggu objective.</p>
           <div class="metric-row">
             <div>
               <span class="metric-label">Profile</span>
@@ -86,65 +84,63 @@
           <div class="phase-rail" id="phase-rail"></div>
         </article>
 
-        <article class="panel-shell hero-card hero-card--topology">
-          <div class="topology-head">
-            <p class="eyebrow">Swarm Topology</p>
-            <div id="topology-caption" class="topology-caption">Belum ada run aktif.</div>
-          </div>
+        <article class="panel">
+          <p class="eyebrow">Topology</p>
+          <p id="topology-caption" class="muted">Belum ada run aktif.</p>
           <div class="topology-stage">
             <svg id="topology-svg" viewBox="0 0 820 420" preserveAspectRatio="xMidYMid meet"></svg>
           </div>
         </article>
       </section>
 
-      <section class="skill-band panel-shell">
-        <div class="band-head">
-          <div>
-            <p class="eyebrow">Skill Routing</p>
-            <h2>Installed Codex Skills</h2>
-          </div>
-          <p id="skill-band-status" class="band-status">Skill catalog dimuat dari instalasi lokal Codex Anda.</p>
-        </div>
-        <div id="skill-band" class="skill-band__chips"></div>
-      </section>
-
-      <section class="detail-grid">
-        <article class="panel-shell event-panel">
-          <div class="panel-head">
+      <section class="summary-grid">
+        <article class="panel">
+          <div class="section-head">
             <div>
-              <p class="eyebrow">Inter-Agent Feed</p>
-              <h2>Communication Stream</h2>
+              <p class="eyebrow">Skills</p>
+              <h3>Skill Routing</h3>
+            </div>
+            <p id="skill-band-status" class="muted">Skill catalog dimuat dari instalasi lokal Codex Anda.</p>
+          </div>
+          <div id="skill-band" class="skill-band__chips"></div>
+        </article>
+
+        <article class="panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Activity</p>
+              <h3>Inter-Agent Feed</h3>
             </div>
             <span id="event-counter" class="counter-pill">0 event</span>
           </div>
           <div id="event-feed" class="event-feed"></div>
         </article>
-
-        <article class="panel-shell final-panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Final Synthesis</p>
-              <h2>Swarm Output</h2>
-            </div>
-          </div>
-          <pre id="final-report" class="final-report">Belum ada synthesis.</pre>
-        </article>
       </section>
 
-      <main>
-        <section class="agents-headline">
+      <section class="panel">
+        <div class="section-head">
           <div>
-            <p class="eyebrow">Raw Agent View</p>
-            <h2>Per-Agent Codex Trace</h2>
+            <p class="eyebrow">Output</p>
+            <h3>Final Synthesis</h3>
           </div>
-          <p class="agents-note">Setiap card menampilkan role, skill yang dirouting, thread id, summary, dan raw log JSON/event dari `codex exec --json`.</p>
-        </section>
+        </div>
+        <pre id="final-report" class="final-report">Belum ada synthesis.</pre>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Agents</p>
+            <h3>Per-Agent Trace</h3>
+          </div>
+          <p class="muted">Ringkasan agent, skill, status, hasil, dan raw log.</p>
+        </div>
         <section class="agents-grid" id="agents-grid"></section>
-      </main>
+      </section>
     </div>
 
     <template id="agent-card-template">
-      <article class="agent-card panel-shell">
+      <article class="agent-card panel">
         <header class="agent-card__header">
           <div>
             <p class="agent-role"></p>
