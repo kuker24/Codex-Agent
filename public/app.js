@@ -5,6 +5,9 @@ const state = {
   cards: new Map(),
   settings: null,
   codexBinary: 'codex',
+  authHeader: 'x-ai-agent-token',
+  authToken: '',
+  constraints: null,
 };
 
 const grid = document.getElementById('agent-grid');
@@ -45,7 +48,7 @@ settingsForm.addEventListener('submit', async (event) => {
 
 restartAllButton.addEventListener('click', async () => {
   statusMessage.textContent = 'Restarting all Codex sessions...';
-  await fetch('/api/sessions/restart-all', { method: 'POST' });
+  await authorizedFetch('/api/sessions/restart-all', { method: 'POST' });
   statusMessage.textContent = 'Semua sesi di-restart.';
 });
 
@@ -54,6 +57,10 @@ async function bootstrap() {
   const payload = await response.json();
   state.settings = payload.defaults;
   state.codexBinary = payload.codexBinary || 'codex';
+  state.authHeader = payload.auth?.header || state.authHeader;
+  state.authToken = payload.auth?.token || '';
+  state.constraints = payload.constraints || null;
+  applyConstraints();
 
   const recommendedCount = recommendPanelCount(window.innerWidth, window.innerHeight);
   const initialCount = Number.isInteger(payload.defaults?.panelCount) ? payload.defaults.panelCount : recommendedCount;
@@ -77,7 +84,7 @@ async function syncSessions() {
   };
 
   statusMessage.textContent = 'Menyelaraskan layout dan sesi Codex...';
-  const response = await fetch('/api/sessions/sync', {
+  const response = await authorizedFetch('/api/sessions/sync', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(payload),
@@ -197,7 +204,7 @@ function createCard(session) {
 
   elements.restart.addEventListener('click', async () => {
     statusMessage.textContent = `Restarting ${session.name}...`;
-    await fetch(`/api/sessions/${session.id}/restart`, { method: 'POST' });
+    await authorizedFetch(`/api/sessions/${session.id}/restart`, { method: 'POST' });
   });
 
   terminal.onData((data) => {
@@ -222,7 +229,12 @@ function updateCardMeta(card, session) {
 
 function connectSocket(card, sessionId) {
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  const socket = new WebSocket(`${protocol}://${window.location.host}/ws?sessionId=${encodeURIComponent(sessionId)}`);
+  const url = new URL(`${protocol}://${window.location.host}/ws`);
+  url.searchParams.set('sessionId', sessionId);
+  if (state.authToken) {
+    url.searchParams.set('token', state.authToken);
+  }
+  const socket = new WebSocket(url);
   card.socket = socket;
 
   socket.addEventListener('open', () => {
@@ -262,6 +274,41 @@ function connectSocket(card, sessionId) {
       window.setTimeout(() => connectSocket(card, sessionId), 1200);
     }
   });
+}
+
+async function authorizedFetch(url, options = {}) {
+  const headers = new Headers(options.headers || {});
+  if (state.authToken) {
+    headers.set(state.authHeader, state.authToken);
+  }
+  return fetch(url, { ...options, headers });
+}
+
+function applyConstraints() {
+  const sandboxChoices = Array.isArray(state.constraints?.sandboxes) && state.constraints.sandboxes.length
+    ? state.constraints.sandboxes
+    : [...sandboxInput.options].map((option) => option.value);
+  const approvalChoices = Array.isArray(state.constraints?.approvals) && state.constraints.approvals.length
+    ? state.constraints.approvals
+    : [...approvalInput.options].map((option) => option.value);
+
+  rebuildSelect(sandboxInput, sandboxChoices, state.settings?.sandbox || 'workspace-write');
+  rebuildSelect(approvalInput, approvalChoices, state.settings?.approval || 'on-request');
+}
+
+function rebuildSelect(select, values, preferred) {
+  const selected = values.includes(preferred) ? preferred : values[0] || '';
+  select.innerHTML = '';
+  for (const value of values) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = value;
+    option.selected = value === selected;
+    select.append(option);
+  }
+  if (selected) {
+    select.value = selected;
+  }
 }
 
 function fitTerminal(card) {

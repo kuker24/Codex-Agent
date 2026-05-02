@@ -10,6 +10,8 @@
     "swarm:start": "node server/swarm-server.js",
     "swarm:dev": "node --watch server/swarm-server.js",
     "swarm:app": "electron desktop/main.cjs",
+    "validate:static": "python3 -m py_compile scripts/codex_agent.py scripts/git_flow_common.py scripts/git_pr_flow.py scripts/start_work_branch.py tests/smoke_runner.py && bash -n tests/run-smoke-tests.sh scripts/launch-agent-swarm.sh scripts/install-codex-agent-shell.sh scripts/install-gh-local.sh scripts/gh-auth-login.sh scripts/codex-agent scripts/git-pr-flow scripts/start-work-branch scripts/launch-cli-hub.sh scripts/run-codex-pane.sh scripts/build-tmux-local.sh scripts/launch-hub.sh && node --check server/swarm-server.js && node --check server/index.js && node --check desktop/main.cjs",
+    "validate": "npm run validate:static && npm test && npm audit --audit-level=moderate",
     "test": "bash tests/run-smoke-tests.sh",
     "test:smoke": "bash tests/run-smoke-tests.sh"
   },
@@ -23,6 +25,10 @@
   "author": "",
   "license": "MIT",
   "type": "commonjs",
+  "engines": {
+    "node": ">=22",
+    "npm": ">=10"
+  },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",

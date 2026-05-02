@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import pty
 import select
@@ -62,27 +63,43 @@ def random_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def http_json(url: str, *, method: str = "GET", payload: dict | None = None, timeout: int = 10) -> dict:
+def http_json(
+    url: str,
+    *,
+    method: str = "GET",
+    payload: dict | None = None,
+    timeout: int = 10,
+    headers: dict[str, str] | None = None,
+) -> dict:
     data = None
-    headers = {}
+    request_headers = dict(headers or {})
     if payload is not None:
         data = json.dumps(payload).encode("utf-8")
-        headers["content-type"] = "application/json"
-    request = urllib.request.Request(url, data=data, method=method, headers=headers)
+        request_headers["content-type"] = "application/json"
+    request = urllib.request.Request(url, data=data, method=method, headers=request_headers)
     with urllib.request.urlopen(request, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
-def wait_for_http_json(url: str, *, timeout: int = 30) -> dict:
+def wait_for_http_json(url: str, *, timeout: int = 30, headers: dict[str, str] | None = None) -> dict:
     deadline = time.time() + timeout
     last_error: Exception | None = None
     while time.time() < deadline:
         try:
-            return http_json(url, timeout=5)
+            return http_json(url, timeout=5, headers=headers)
         except Exception as error:
             last_error = error
             time.sleep(0.2)
     raise SmokeFailure(f"Timed out waiting for {url}: {last_error}")
+
+
+def control_headers(port: int) -> dict[str, str]:
+    payload = http_json(f"http://127.0.0.1:{port}/api/bootstrap")
+    auth = payload.get("auth") or {}
+    header = str(auth.get("header") or "x-ai-agent-token").strip()
+    token = str(auth.get("token") or "").strip()
+    require(bool(token), "Token kontrol server tidak tersedia dari bootstrap.")
+    return {header: token}
 
 
 def wait_for_file(path: Path, *, timeout: int = 30) -> Path:
@@ -516,6 +533,7 @@ def test_web_two_panel_sync() -> None:
         env["CODEX_BIN"] = str(stub_codex)
         process = start_server(ROOT_DIR / "server/index.js", port=port, env=env)
         try:
+            headers = control_headers(port)
             response = http_json(
                 f"http://127.0.0.1:{port}/api/sessions/sync",
                 method="POST",
@@ -526,6 +544,7 @@ def test_web_two_panel_sync() -> None:
                     "sandbox": "workspace-write",
                     "approval": "on-request",
                 },
+                headers=headers,
             )
             require(response["settings"]["panelCount"] == 2, f"panelCount diserialisasi salah: {response}")
             require(len(response["sessions"]) == 2, f"session count web salah: {response}")
@@ -579,6 +598,7 @@ def test_swarm_stop_semantics() -> None:
         env["CODEX_BIN"] = str(stub_codex)
         process = start_server(ROOT_DIR / "server/swarm-server.js", port=port, env=env)
         try:
+            headers = control_headers(port)
             started = http_json(
                 f"http://127.0.0.1:{port}/api/swarm/start",
                 method="POST",
@@ -586,6 +606,7 @@ def test_swarm_stop_semantics() -> None:
                     "workspace": str(ROOT_DIR),
                     "objective": "Smoke test stop semantics",
                 },
+                headers=headers,
             )
             run_id = started["run"]["id"]
             time.sleep(1.0)
@@ -593,9 +614,10 @@ def test_swarm_stop_semantics() -> None:
                 f"http://127.0.0.1:{port}/api/swarm/{run_id}/stop",
                 method="POST",
                 payload={},
+                headers=headers,
             )
             time.sleep(1.5)
-            health = http_json(f"http://127.0.0.1:{port}/api/health")
+            health = http_json(f"http://127.0.0.1:{port}/api/health", headers=headers)
             active_run = health.get("activeRun") or {}
             require(active_run.get("id") == run_id, f"activeRun hilang setelah stop: {health}")
             require(active_run.get("status") == "stopped", f"status swarm salah setelah stop: {active_run}")
@@ -618,12 +640,14 @@ def test_gh_local_install_helper() -> None:
         write_executable(gh_bin, "#!/usr/bin/env bash\necho gh version 9.9.9-stub\n")
         archive = temp / "gh-stub.tar.gz"
         run(["tar", "-czf", str(archive), "-C", str(temp), package_root.name])
+        archive_sha256 = hashlib.sha256(archive.read_bytes()).hexdigest()
 
         install_root = temp / "install-root"
         bin_dir = temp / "bin"
         env = os.environ.copy()
         env["GH_INSTALL_VERSION"] = "v9.9.9-test"
         env["GH_INSTALL_TARBALL_URL"] = archive.resolve().as_uri()
+        env["GH_INSTALL_SHA256"] = archive_sha256
         env["GH_INSTALL_ROOT"] = str(install_root)
         env["GH_BIN_DIR"] = str(bin_dir)
 
